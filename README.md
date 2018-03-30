@@ -1,5 +1,5 @@
 # Deneum Token and Crowdsale (ICO) contracts
-Denim Ethereum contracts consist of
+Denim Ethereum contracts suite consists of
 * Deneum token (DNM) - the coin supposed to be the main digital asset in Deneum application;
 * Crowdsale contract - emits DNMs to investors during Private sale, pre-ICO and ICO phases. 
 
@@ -9,11 +9,11 @@ DNM is [ERC-20](https://github.com/ethereum/EIPs/issues/20) standard token with 
 - Name: **Deneum**
 - Symbol: **DNM**
 - Decimals: **2**
-- Mintable: **Yes**, Special role for minting, Tapped (limited speed), Finalizeable
-- Burnable: **Yes**, owner can burn his tokens 
+- Mintable: **Yes**, Special role for minting, Finalizeable
+- Burnable: **Yes**, owner can burn its tokens 
 - RBAC: **Yes**, Minters (mint), Owners (add minters)
 - Source Code: **[DeneumToken.sol](contracts/DeneumToken.sol)**
-- Mainnet address: **[Not deployed yet](https://etherscan.io/address/0x0)**
+- Mainnet address: **[0x2896A4BBd70712bb3aAd89eb65B5F6393768707C](https://etherscan.io/address/0x2896a4bbd70712bb3aad89eb65b5f6393768707c)**
 
 ## Crowdsale contract
 
