@@ -1,4 +1,5 @@
 import ether from './helpers/ether';
+import EVMRevert from './helpers/EVMRevert';
 
 const BigNumber = web3.BigNumber;
 
@@ -12,7 +13,9 @@ const SimpleToken = artifacts.require('DeneumToken');
 const PriceOracle = artifacts.require('PriceOracleMock');
 
 contract('Crowdsale', function (accounts) {
-  const wallet = accounts[0];
+  const wallet = accounts[1];
+  const owner = accounts[0];
+  const unprivileged = accounts[9];
   const value = ether(1);
 
   beforeEach(async function () {
@@ -26,6 +29,27 @@ contract('Crowdsale', function (accounts) {
     it('should return ETH/USD price', async function () {
       const price = await this.crowdsale.getPriceUSDcETH();
       price.should.be.bignumber.equal(121233);
+    });
+  });
+
+  describe('unprivileged account', function () {
+    it('unable to change oracle', async function () {
+      await this.crowdsale.setOracle(this.oracle.address, {from: unprivileged }).should.be.rejectedWith(EVMRevert);
+      const price = await this.crowdsale.getPriceUSDcETH();
+      price.should.be.bignumber.equal(121233);
+    });
+  });
+
+  describe('owner account', function () {
+    beforeEach(async function () {
+      this.newOracle = await PriceOracle.new(356715);
+      await this.token.addMinter(this.crowdsale.address);
+    });
+
+    it('able to change oracle', async function () {
+      await this.crowdsale.setOracle(this.newOracle.address, {from: owner }).should.be.fulfilled;
+      const price = await this.crowdsale.getPriceUSDcETH();
+      price.should.be.bignumber.equal(356715);
     });
   });
 

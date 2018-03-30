@@ -2,6 +2,7 @@ pragma solidity ^0.4.18;
 
 import "../zeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 import "../zeppelin-solidity/contracts/math/SafeMath.sol";
+import "../zeppelin-solidity/contracts/ownership/rbac/RBAC.sol";
 import "./DeneumToken.sol";
 import "./PriceOracleInterface.sol";
 
@@ -18,8 +19,10 @@ import "./PriceOracleInterface.sol";
  * behavior.
  */
 
-contract DeneumCrowdsale {
+contract DeneumCrowdsale is RBAC {
   using SafeMath for uint256;
+
+  mapping (address => bool) owners;
 
   // The token being sold
   DeneumToken public token;
@@ -41,12 +44,14 @@ contract DeneumCrowdsale {
    * @param amount amount of tokens purchased
    */
   event TokenPurchase(address indexed purchaser, address indexed beneficiary, uint256 value, uint256 amount);
+  event OwnerAdded(address indexed newOwner);
+  event OwnerRemoved(address indexed removedOwner);
 
   /**
    * @param _wallet Address where collected funds will be forwarded to
    * @param _token Address of the token being sold
    */
-  function DeneumCrowdsale(address _wallet, DeneumToken _token, PriceOracle _oracle) public {
+  function DeneumCrowdsale(address _wallet, DeneumToken _token, PriceOracle _oracle) RBAC() public {
     require(_wallet != address(0));
     require(_token != address(0));
     wallet = _wallet;
@@ -58,13 +63,13 @@ contract DeneumCrowdsale {
    * @dev fallback function ***DO NOT OVERRIDE***
    */
   function () external payable {
-    uint256 rate = 1;
+    uint256 price = oracle.priceUSDcETH();
     uint256 weiAmount = msg.value;
     address beneficiary = msg.sender;
-    require(rate > 0);
+    require(price > 0);
     require(beneficiary != address(0));
     require(weiAmount != 0);
-    uint256 tokens = weiAmount.mul(rate);
+    uint256 tokens = weiAmount.mul(price);
     weiRaised = weiRaised.add(weiAmount);
     token.mint(beneficiary, tokens);
     TokenPurchase(msg.sender, beneficiary, weiAmount, tokens);
@@ -74,4 +79,10 @@ contract DeneumCrowdsale {
   function getPriceUSDcETH() public view returns(uint256) {
     return oracle.priceUSDcETH();
   }
+
+  function setOracle(PriceOracle _oracle) public onlyAdmin {
+    require(oracle.priceUSDcETH() > 0);
+    oracle = _oracle;
+  }
+
 }
