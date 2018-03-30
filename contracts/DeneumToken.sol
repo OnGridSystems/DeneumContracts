@@ -20,7 +20,7 @@ contract DeneumToken is StandardToken {
     event MinterRemoved(address indexed removedMinter);
     event Burn(address indexed burner, uint256 value);
 
-    function DeniumToken() public {
+    function DeneumToken() public {
         owners[msg.sender] = true;
     }
 
