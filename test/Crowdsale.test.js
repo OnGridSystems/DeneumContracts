@@ -9,19 +9,25 @@ const should = require('chai')
 
 const Crowdsale = artifacts.require('DeneumCrowdsale');
 const SimpleToken = artifacts.require('DeneumToken');
+const PriceOracle = artifacts.require('PriceOracleMock');
 
 contract('Crowdsale', function (accounts) {
   const wallet = accounts[0];
-  const purchaser = accounts[1];
-  const rate = new BigNumber(1);
   const value = ether(1);
 
   beforeEach(async function () {
+    this.oracle = await PriceOracle.new(121233);
     this.token = await SimpleToken.new();
-    this.crowdsale = await Crowdsale.new(wallet, this.token.address);
+    this.crowdsale = await Crowdsale.new(wallet, this.token.address, this.oracle.address);
     await this.token.addMinter(this.crowdsale.address);
   });
 
+  describe('interop with oracle service', function () {
+    it('should return ETH/USD price', async function () {
+      const price = await this.crowdsale.getPriceUSDcETH();
+      price.should.be.bignumber.equal(121233);
+    });
+  });
 
   describe('accepting payments', function () {
     it('should accept payments', async function () {

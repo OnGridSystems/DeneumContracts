@@ -3,6 +3,7 @@ pragma solidity ^0.4.18;
 import "../zeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 import "../zeppelin-solidity/contracts/math/SafeMath.sol";
 import "./DeneumToken.sol";
+import "./PriceOracleInterface.sol";
 
 /**
  * @title Crowdsale
@@ -23,6 +24,9 @@ contract DeneumCrowdsale {
   // The token being sold
   DeneumToken public token;
 
+  // ETH/USD price source
+  PriceOracle public oracle;
+
   // Address where funds are collected
   address public wallet;
 
@@ -42,11 +46,12 @@ contract DeneumCrowdsale {
    * @param _wallet Address where collected funds will be forwarded to
    * @param _token Address of the token being sold
    */
-  function DeneumCrowdsale(address _wallet, DeneumToken _token) public {
+  function DeneumCrowdsale(address _wallet, DeneumToken _token, PriceOracle _oracle) public {
     require(_wallet != address(0));
     require(_token != address(0));
     wallet = _wallet;
     token = _token;
+    oracle = _oracle;
   }
 
   /**
@@ -66,4 +71,7 @@ contract DeneumCrowdsale {
     wallet.transfer(msg.value);
   }
 
+  function getPriceUSDcETH() public view returns(uint256) {
+    return oracle.priceUSDcETH();
+  }
 }
