@@ -1,4 +1,5 @@
 # Deneum Token and Crowdsale (ICO) contracts
+[![Build Status](https://travis-ci.org/OnGridSystems/DeneumContracts.svg?branch=master)](https://travis-ci.org/OnGridSystems/DeneumContracts)
 Denim Ethereum contracts suite consists of
 * Deneum token (DNM) - the coin supposed to be the main digital asset in Deneum application;
 * Crowdsale contract - emits DNMs to investors during Private sale, pre-ICO and ICO phases. 
