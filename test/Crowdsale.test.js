@@ -90,12 +90,18 @@ contract('Crowdsale', function (accounts) {
       });
       it('unprivileged account able to change oracle', async function () {
         const newOracle = await PriceOracle.new(987);
-        await this.crowdsale.setOracle(newOracle.address, { from: unprivileged }).should.be.fulfilled;
+        const { logs } = await this.crowdsale.setOracle(newOracle.address, { from: unprivileged }).should.be.fulfilled;
+        assert.equal(logs.length, 1);
+        assert.equal(logs[0].event, 'OracleChanged');
+        assert.equal(logs[0].args.newOracle, newOracle.address);
         const price = await this.crowdsale.getPriceUSDcETH();
         price.should.be.bignumber.equal(987);
       });
       it('unprivileged account able to set wallet', async function () {
-        await this.crowdsale.setWallet(unprivileged, { from: unprivileged }).should.be.fulfilled;
+        const { logs } = await this.crowdsale.setWallet(unprivileged, { from: unprivileged }).should.be.fulfilled;
+        assert.equal(logs.length, 1);
+        assert.equal(logs[0].event, 'WalletChanged');
+        assert.equal(logs[0].args.newWallet, unprivileged);
         const retVal = await this.crowdsale.wallet();
         retVal.should.be.equal(unprivileged);
       });
@@ -111,82 +117,67 @@ contract('Crowdsale', function (accounts) {
       phase[0].should.be.bignumber.equal(1520030000);
       phase[1].should.be.bignumber.equal(1530000000);
       phase[2].should.be.bignumber.equal(295);
-      phase[3].should.be.bignumber.equal(45000000);
+      phase[4].should.be.bignumber.equal(45000000);
     });
     it('token should be never minted', async function () {
       const tkn = await this.token.totalSupply();
       tkn.should.be.bignumber.equal(0);
     });
-    it('wallet should be have default initial balance', async function () {
-      await web3.eth.getBalance(wallet).should.be.bignumber.equal(ether(100));
-    });
     describe('send ethers to the crowdsale', function () {
-      it('see crowdsale and wallet changes', async function () {
-        await this.crowdsale.send(ether(1));
-        await web3.eth.getBalance(wallet).should.be.bignumber.equal(ether(101));
-        var retVal = await this.token.totalSupply().should.be.fulfilled;
-        retVal.should.be.bignumber.equal(13220);
-        retVal = await this.token.balanceOf(owner).should.be.fulfilled;
-        retVal.should.be.bignumber.equal(13220);
-        await this.crowdsale.sendTransaction({value: ether(1), from: accounts[6]}).should.be.fulfilled;
-        retVal = await web3.eth.getBalance(wallet);
-        retVal.should.be.bignumber.equal(ether(102));
-        retVal = await this.token.totalSupply().should.be.fulfilled;
-        retVal.should.be.bignumber.equal(26440);
-        retVal = await this.token.balanceOf(accounts[6]).should.be.fulfilled;
-        retVal.should.be.bignumber.equal(13220);
+      it('receiving wallet increased and log is ok', async function () {
+        var pre = await web3.eth.getBalance(wallet);
+        const { logs } = await this.crowdsale.send(ether(1)).should.be.fulfilled;
+        assert.equal(logs.length, 1);
+        assert.equal(logs[0].event, 'TokenPurchase');
+        assert.equal(logs[0].args.purchaser, owner);
+        assert.equal(logs[0].args.beneficiary, owner);
+        assert.equal(logs[0].args.value, 1000000000000000000);
+        assert.equal(logs[0].args.amount, 13220);
+        var post = await web3.eth.getBalance(wallet);
+        (post - pre).should.be.bignumber.equal(ether(1));
+      });
+      it('purchase changes token\'s totalSupply', async function () {
+        const pre = await this.token.totalSupply().should.be.fulfilled;
+        await this.crowdsale.send(ether(1)).should.be.fulfilled;
+        const post = await this.token.totalSupply().should.be.fulfilled;
+        (post - pre).should.be.bignumber.equal(13220);
+      });
+      it('purchase changes purchaser\'s token balance', async function () {
+        const pre = await this.token.balanceOf(accounts[8]).should.be.fulfilled;
+        await this.crowdsale.sendTransaction({ value: ether(1), from: accounts[8] }).should.be.fulfilled;
+        const post = await this.token.balanceOf(accounts[8]).should.be.fulfilled;
+        (post - pre).should.be.bignumber.equal(13220);
+      });
+      it('purchase changes crowdsale tokensIssued counter', async function () {
+        const pre = await this.crowdsale.tokensIssued().should.be.fulfilled;
+        await this.crowdsale.sendTransaction({ value: ether(1), from: accounts[4] }).should.be.fulfilled;
+        const post = await this.crowdsale.tokensIssued().should.be.fulfilled;
+        (post - pre).should.be.bignumber.equal(13220);
+      });
+      it('purchase changes phase tokensIssued counter', async function () {
+        const curPhaseIndex = await this.crowdsale.getCurrentPhaseIndex().should.be.fulfilled;
+        const pre = await this.crowdsale.phases(curPhaseIndex).should.be.fulfilled;
+        await this.crowdsale.sendTransaction({ value: ether(1), from: accounts[4] }).should.be.fulfilled;
+        const post = await this.crowdsale.phases(curPhaseIndex).should.be.fulfilled;
+        (post[3] - pre[3]).should.be.bignumber.equal(13220);
+      });
+      it('purchase changes weiRaised counter', async function () {
+        const pre = await this.crowdsale.weiRaised().should.be.fulfilled;
+        await this.crowdsale.sendTransaction({ value: ether(1), from: accounts[4] }).should.be.fulfilled;
+        const post = await this.crowdsale.weiRaised().should.be.fulfilled;
+        (post - pre).should.be.bignumber.equal(ether(1));
       });
     });
   });
-  /*
-  describe('high-level purchase', function () {
-    it('should log purchase', async function () {
-      //const { logs } = await this.crowdsale.sendTransaction({ value: value, from: investor });
-      //const event = logs.find(e => e.event === 'TokenPurchase');
-      should.exist(event);
-      event.args.purchaser.should.equal(investor);
-      event.args.beneficiary.should.equal(investor);
-      event.args.value.should.be.bignumber.equal(value);
-      event.args.amount.should.be.bignumber.equal(expectedTokenAmount);
+  describe('decrease phaseCap', function () {
+    beforeEach(async function () {
+      await this.crowdsale.addPhase(1520030000, 1530000000, 295, 13000);
     });
-
-    it('should assign tokens to sender', async function () {
-      //await this.crowdsale.sendTransaction({ value: value, from: investor });
-      let balance = await this.token.balanceOf(investor);
-      balance.should.be.bignumber.equal(expectedTokenAmount);
-    });
-
-    it('should forward funds to wallet', async function () {
-      const pre = web3.eth.getBalance(wallet);
-      //await this.crowdsale.sendTransaction({ value, from: investor });
-      const post = web3.eth.getBalance(wallet);
-      post.minus(pre).should.be.bignumber.equal(value);
+    it('tx should revert if over phaseCap', async function () {
+      var pre = await web3.eth.getBalance(wallet);
+      await this.crowdsale.send(ether(1)).should.be.rejectedWith(EVMRevert);
+      var post = await web3.eth.getBalance(wallet);
+      (post - pre).should.be.bignumber.equal(0);
     });
   });
-
-  describe('low-level purchase', function () {
-    it('should log purchase', async function () {
-      const { logs } = await this.crowdsale.buyTokens(investor, { value: value, from: purchaser });
-      const event = logs.find(e => e.event === 'TokenPurchase');
-      should.exist(event);
-      event.args.purchaser.should.equal(purchaser);
-      event.args.beneficiary.should.equal(investor);
-      event.args.value.should.be.bignumber.equal(value);
-      event.args.amount.should.be.bignumber.equal(expectedTokenAmount);
-    });
-
-    it('should assign tokens to beneficiary', async function () {
-      await this.crowdsale.buyTokens(investor, { value, from: purchaser });
-      const balance = await this.token.balanceOf(investor);
-      balance.should.be.bignumber.equal(expectedTokenAmount);
-    });
-
-    it('should forward funds to wallet', async function () {
-      const pre = web3.eth.getBalance(wallet);
-      await this.crowdsale.buyTokens(investor, { value, from: purchaser });
-      const post = web3.eth.getBalance(wallet);
-      post.minus(pre).should.be.bignumber.equal(value);
-    });
-  });
-  */
 });
