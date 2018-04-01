@@ -30,8 +30,6 @@ contract DeneumCrowdsale is RBAC {
     }
     Phase[] public phases;
 
-    mapping (address => bool) owners;
-
     // The token being sold
     DeneumToken public token;
 
@@ -41,8 +39,16 @@ contract DeneumCrowdsale is RBAC {
     // Address where funds are collected
     address public wallet;
 
-    // Amount of wei raised
+    /**
+     *  Amount of ETH raised
+     *  wei is 10e-18 ETH
+     */
     uint256 public weiRaised;
+
+    /**
+     *  Amount of tokens issued by this contract
+     */
+    uint256 public tokensIssued;
 
     /**
      * Event for token purchase logging
@@ -52,13 +58,17 @@ contract DeneumCrowdsale is RBAC {
      * @param amount amount of tokens purchased
      */
     event TokenPurchase(address indexed purchaser, address indexed beneficiary, uint256 value, uint256 amount);
+    /**
+     * @dev   Events for contract states changes
+     */
     event PhaseAdded(address indexed sender, uint256 index, uint256 startDate, uint256 endDate, uint256 priceUSDcDNM, uint256 cap);
     event PhaseDeleted(address indexed sender, uint256 index);
-
+    event WalletChanged(address newWallet);
 
     /**
      * @param _wallet Address where collected funds will be forwarded to
-     * @param _token Address of the token being sold
+     * @param _token  Address of the token being sold
+     * @param _oracle ETH price oracle where we get actual exchange rate
      */
     function DeneumCrowdsale(address _wallet, DeneumToken _token, PriceOracle _oracle) RBAC() public {
         require(_wallet != address(0));
@@ -69,16 +79,18 @@ contract DeneumCrowdsale is RBAC {
     }
 
     /**
-     * @dev fallback function ***DO NOT OVERRIDE***
+     * @dev fallback function receiving ethers
      */
     function () external payable {
-        uint256 priceUSDcETH = oracle.priceUSDcETH();
+        uint256 priceUSDcETH = getPriceUSDcETH();
         uint256 weiAmount = msg.value;
         address beneficiary = msg.sender;
-        require(priceUSDcETH > 0);
+        uint256 currentPhaseIndex = getCurrentPhaseIndex();
         require(beneficiary != address(0));
         require(weiAmount != 0);
-        uint256 tokens = weiAmount.mul(priceUSDcETH);
+        uint256 valueUSDc = weiAmount.mul(priceUSDcETH).div(1 ether);
+        // digits = 100
+        uint256 tokens = valueUSDc.mul(100).div(phases[currentPhaseIndex].priceUSDcDNM);
         weiRaised = weiRaised.add(weiAmount);
         token.mint(beneficiary, tokens);
         TokenPurchase(msg.sender, beneficiary, weiAmount, tokens);
@@ -86,6 +98,7 @@ contract DeneumCrowdsale is RBAC {
     }
 
     function getPriceUSDcETH() public view returns(uint256) {
+        require(oracle.priceUSDcETH() > 0);
         return oracle.priceUSDcETH();
     }
 
@@ -128,15 +141,20 @@ contract DeneumCrowdsale is RBAC {
         PhaseDeleted(msg.sender, index);
     }
 
-    // Return current phase cap and price (in USDcents per DNM)
-    function getCurentPhase() view public returns (uint256, uint256) {
+    // Return current phase index
+    function getCurrentPhaseIndex() view public returns (uint256) {
         for (uint i = 0; i < phases.length; i++) {
             if (phases[i].startDate <= now && now <= phases[i].endDate) {
-                require (phases[i].priceUSDcDNM > 0);
-                return (phases[i].priceUSDcDNM, phases[i].cap);
+                return i;
             }
         }
         revert();
+    }
+
+    function setWallet(address _newWallet) onlyAdmin public {
+        require(_newWallet != address(0));
+        wallet = _newWallet;
+        WalletChanged(_newWallet);
     }
 
 }

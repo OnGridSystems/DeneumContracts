@@ -19,14 +19,14 @@ contract('Crowdsale Phase Editor', function (accounts) {
   const value = ether(1);
 
   beforeEach(async function () {
-    this.oracle = await PriceOracle.new(121233);
+    this.oracle = await PriceOracle.new(39000);
     this.token = await SimpleToken.new();
     this.crowdsale = await Crowdsale.new(wallet, this.token.address, this.oracle.address);
-    this.crowdsale.addPhase(1520000000, 1520001000, 9999999999999999999999, 999999999);
-    this.crowdsale.addPhase(1520001001, 1520002000, 8999999999999999999999, 999999999);
-    this.crowdsale.addPhase(1520002001, 1520003000, 7999999999999999999999, 999999999);
-    this.crowdsale.addPhase(1520009001, 1520009999, 8999999999999999999999, 999999999);
-    this.crowdsale.addPhase(1530000001, 1539999999, 899999999999999999999999, 999999999);
+    await this.crowdsale.addPhase(1520000000, 1520001000, 9999999999999999999999, 999999999);
+    await this.crowdsale.addPhase(1520001001, 1520002000, 8999999999999999999999, 999999999);
+    await this.crowdsale.addPhase(1520002001, 1520003000, 7999999999999999999999, 999999999);
+    await this.crowdsale.addPhase(1520009001, 1520009999, 8999999999999999999999, 999999999);
+    await this.crowdsale.addPhase(1530000001, 1539999999, 899999999999999999999999, 999999999);
   });
 
   describe('phase modification functions', function () {
@@ -38,13 +38,10 @@ contract('Crowdsale Phase Editor', function (accounts) {
     });
     describe('after we add unprivileged account as admin', function () {
       beforeEach(async function () {
-        this.crowdsale.adminAddRole(unprivileged, 'admin');
+        await this.crowdsale.adminAddRole(unprivileged, 'admin');
       });
       it('able to add phase', async function () {
         await this.crowdsale.addPhase(1522000000, 1530000000, 1238876, 999999, { from: unprivileged }).should.be.fulfilled;
-      });
-      it('able to del phase', async function () {
-        await this.crowdsale.delPhase(0, { from: unprivileged }).should.be.fulfilled;
       });
       describe('check phase validation', function () {
         it('totally overlapped phase (inside existing period) is invalid', async function () {
@@ -91,19 +88,20 @@ contract('Crowdsale Phase Editor', function (accounts) {
         });
       });
       it('delete phase 1 with pre- and post- checks', async function () {
-        const resultBefore = await this.crowdsale.validatePhaseDates(1520001101, 1520001102).should.be.fulfilled;
+        const resultBefore = await this.crowdsale.validatePhaseDates(1520009001, 1520009002).should.be.fulfilled;
         resultBefore.should.be.equal(false);
-        const { logs } = await this.crowdsale.delPhase(1, { from: unprivileged }).should.be.fulfilled;
+        const { logs } = await this.crowdsale.delPhase(3, { from: unprivileged }).should.be.fulfilled;
         assert.equal(logs.length, 1);
         assert.equal(logs[0].event, 'PhaseDeleted');
         assert.equal(logs[0].args.sender, unprivileged);
-        assert.equal(logs[0].args.index, 1);
-        const resultAfter = await this.crowdsale.validatePhaseDates(1520001101, 1520001102).should.be.fulfilled;
-        resultAfter.should.be.equal(false);
+        assert.equal(logs[0].args.index, 3);
+        //ToDo
+        const resultAfter = await this.crowdsale.validatePhaseDates(1520009001, 1520009002).should.be.fulfilled;
+        resultAfter.should.be.equal(true);
       });
       describe('then revoke admin privileges', function () {
         beforeEach(async function () {
-          this.crowdsale.adminRemoveRole(unprivileged, 'admin');
+          await this.crowdsale.adminRemoveRole(unprivileged, 'admin');
         });
         it('unable to add phase by unprivileged account', async function () {
           await this.crowdsale.addPhase(1522000000, 1530000000, 1238876, 999999, { from: unprivileged }).should.be.rejectedWith(EVMRevert);
@@ -117,18 +115,17 @@ contract('Crowdsale Phase Editor', function (accounts) {
 
   describe('at the time when no active phase', function () {
     it('unable to see current DNM price in USD cents', async function () {
-      await this.crowdsale.getCurentPhase().should.be.rejectedWith(EVMRevert);
+      await this.crowdsale.getCurrentPhaseIndex().should.be.rejectedWith(EVMRevert);
     });
   });
 
   describe('at the time when active phase exists', function () {
     beforeEach(async function () {
-      this.crowdsale.addPhase(1520010000, 1530000000, 295, 45000000);
+      await this.crowdsale.addPhase(1520010000, 1530000000, 295, 45000000);
     });
     it('able to see current DNM price in USD cents', async function () {
-      const price = await this.crowdsale.getCurentPhase().should.be.fulfilled;
-      price[0].should.be.bignumber.equal(295);
-      price[1].should.be.bignumber.equal(45000000);
+      const index = await this.crowdsale.getCurrentPhaseIndex().should.be.fulfilled;
+      index.should.be.bignumber.equal(5);
     });
   });
 
