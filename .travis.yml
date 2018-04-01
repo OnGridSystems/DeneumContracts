@@ -1,0 +1,16 @@
+language: node_js
+node_js:
+  - "8"
+
+before_install:
+  - sudo add-apt-repository ppa:ethereum/ethereum -y
+  - sudo apt-get update -q
+  - sudo apt-get install solc screen -y
+
+install:
+  - npm install -g truffle dotenv
+  - npm install
+  
+script:
+  - screen -dm bash -c "testrpc"
+  - truffle test
