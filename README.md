@@ -28,29 +28,27 @@ The crowdsale contract contains a list of phases, each phase has a start time, e
 **minPurchaseUSDc** is the minimal amount of purchase in USD cents. 
 If current time doesn't match any phase or transferred value less than minPurchaseUSDc the operation is thrown (reverted).
 
-### Crowdsale schedule
+### Crowdsale schedule (preliminary)
 
 | Phase | Ph.Name  | Start date (UTC)    | Start Unix | End date (UTC)      | End Unix   | Price, USD |  Cap, DNM  |  Cap, USD  | 
 | ----- | -------- | ------------------- | ---------- | ------------------- | ---------- | ---------- | ---------- | ---------- |
-| 0     | Private  | 0000-00-00 00:00:00 | 0000000000 | 0000-00-00 00:00:00 | 0000000000 |    2.95    |    450,000 |  1,327,500 |
-| 1     | Pre-ICO  | 0000-00-00 00:00:00 | 0000000000 | 0000-00-00 00:00:00 | 0000000000 |    5.65    |    900,000 |  5,085,000 |
-| 2     | ICO      | 0000-00-00 00:00:00 | 0000000000 | 0000-00-00 00:00:00 | 0000000000 |    8.90    | 10,000,000 | 89,000,000 |
+| 0     | Private  | 2018-04-02 07:30:15 | 1522654215 | 2018-05-25 14:00:00 | 1527256800 |    2.95    |    450,000 |  1,327,500 |
+| 1     | Pre-ICO  | not configured yet  | not config | not configured yet  | not config |    5.65    |    900,000 |  5,085,000 |
+| 2     | ICO      | not configured yet  | not config | not configured yet  | not config |    8.90    | 10,000,000 | 89,000,000 |
 
 ### Crowdsale schedule modification
 
 The internal phases schedule can be changed at any time by the owner with the following methods:
 ```
-setTotalPhases(uint value)
-setPhase(uint index, uint256 _startTime, uint256 _endTime, uint256 _discountPercent)
-delPhase(uint index)
+addPhase(_startDate, _endDate, _priceUSDcDNM, _tokensCap)
+delPhase(index)
 ```
 ## Price oracle
 **TBD: to use external price source**
-In-contract ETH price is kept up to date by external entity Oracle polling the exchanges. Oracle runs as an external off-chain script
-under the low-privileged 'Bot' account. A list of such oracle bots can be changed by the owner with the methods:
+In-contract ETH price is kept up to date by external Oracle contract containing current ETH price. 
+Contract owner can change price source at any time with
 ```
-addBot(address _address)
-delBot(address _address)
+setOracle(oracle)
 ```
 
 ## Wallets
@@ -70,32 +68,13 @@ git clone --recurse-submodules git@github.com:OnGridSystems/DeneumContracts.git
 ```
 
 ### Test it
-To be sure in code quality and compatibility we use BOTH framoworks for testing our code:
-* truffle - popular JS-based DApps framework. Uses solc-js compiler and mocha;
-* populus - python-based ethereum framework. Uses solc compiler and pytest.
+To be sure in code quality and compatibility we use truffle framowork for testing our code:
 
 #### Run truffle tests
 - Install [truffle framework](http://truffleframework.com) on your host. It will install solc-js compiler automatically.
-- Run ```truffle develop``` in one console, its command prompt > will appear. Leave it open.
-- Start the new console and type ```truffle deploy --reset```.
-- After migration run ```truffle test --reset``` and see the progress.
+- Run ```testrpc``` in one console and leave it open.
+- Start the new console and type ```truffle test```.
 
-#### Run populus tests
-- Install latest python3 (in this example we use python3.6).
-- Create python virtual environment, activate and install requirements
-```
-virtualenv --python=python3.6 .
-source bin/activate
-pip install -r requirements.txt
-```
-- There is annoying solc option 'allow_paths' denying access to project sources. Patch solc wrapper to mute it.
-```
-./solc_wrapper_patch.sh
-```
-- run tests and enjoy
-```
-py.test test/
-```
 ### Deploy on the net
 
 - Flatten your solidity code
@@ -111,59 +90,26 @@ You can use [Remix IDE](http://remix.ethereum.org) for deployment on the net.
 deploy(Token)
 ```
 - As Tx get mined go to the etherscan and do **Token**'s source code verification
-- Set mint tap to reasonable initial amount of tokens per second
+- Deploy **Crowdsale** contract
 ```
-Token.setMintTap(10000) //100 tokens/s
+deploy Crowdsale(wallet, Token, oracle)
 ```
-- Deploy **Crowdsale** contract, use the **Token** address and current ETH price in USD cents as arguments
+where wallet is external address to receive depisited ethers, token is the token contract deployed on previous step
+and oracle is external oracle service.
+
+- Add/Del Phases
 ```
-deploy(Crowdsale, Token.address, 12345)
+addPhase(_startDate, _endDate, _priceUSDcDNM, _tokensCap)
+delPhase(index)
 ```
-- By default Crowdsale contract has a single wallet receiving collected ethers - the address who deployed the contract.
-You can add/delete receiving wallets manually.
-```
-Crowdsale.getWalletsCount()
-Crowdsale.wallets(0)
-Crowdsale.addWallet(walletAddress)
-Crowdsale.wallets(1)
-Crowdsale.delWallet(0)
-```
-- Add Oracle bot account to do regular price updates
-```
-Crowdsale.addBot(botAddress)
-```
-- Add Cashier account for non-Ethereum payments
-```
-Crowdsale.addCashier(cashierAddress)
-```
-- Add Phases
-```
-Crowdsale.setTotalPhases(5)
-// Args are: index, startDate, stopDate, discount%
-Crowdsale.setPhase(0, 1522195200, 1523750399, 40)
-Crowdsale.setPhase(1, 1523750400, 1525132799, 30)
-Crowdsale.setPhase(2, 1525132800, 1527811199, 25)
-Crowdsale.setPhase(3, 1527811200, 1529539199, 20)
-Crowdsale.setPhase(4, 1530403200, 1533081599, 0)
-```
-- Add Crowdsale contract to the minters list of the token
+- Add Crowdsale contract to the minters of the token
 ```
 Token.addMinter(Crowdsale.address)
 ```
 ### Post-Deploy steps
 - Good practice is to verify Source Code on the etherscan. Do it for both Crowdsale and Token.
-- Publish your Crowdsale contract for investors. Make a notice on dates, discounts and minimal contributon.
+- Publish your Crowdsale contract for investors. 
 
-### Crowdsale housekeeping
-- keep contract ETH price up do date (the external Oracle script does it perfectly!). Only account in bots list allowed to do this.
-```
-Crowdsale.setRate(12345) // ETH price in USD cents
-```
-- receive non-Ethereum deposits and mint corresponding amount of tokens. Only cashier account.
-```
-// receive 100 USD and issue 14000.00 tokens
-Crowdsale.offChainPurchase(beneficiaryAccount, 1400000, 10000) 
-```
 ### After crowdsale end
 After the last phase ends you can disconnect Crowdsale from the token (remove minting privileges given before).
 ```
