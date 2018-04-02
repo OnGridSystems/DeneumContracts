@@ -1,5 +1,6 @@
 # Deneum Token and Crowdsale (ICO) contracts
 [![Build Status](https://travis-ci.org/OnGridSystems/DeneumContracts.svg?branch=master)](https://travis-ci.org/OnGridSystems/DeneumContracts)
+
 Denim Ethereum contracts suite consists of
 * Deneum token (DNM) - the coin supposed to be the main digital asset in Deneum application;
 * Crowdsale contract - emits DNMs to investors during Private sale, pre-ICO and ICO phases. 
@@ -19,7 +20,7 @@ DNM is [ERC-20](https://github.com/ethereum/EIPs/issues/20) standard token with 
 ## Crowdsale contract
 
 - Source code: **[DeneumCrowdsale.sol](contracts/LongevityCrowdsale.sol)**
-- Mainnet address: **[Not deployed yet](https://etherscan.io/address/0x0)**
+- Mainnet address: **[0x28ed4e3751e12dc10aae6c4e40be1a3dad989483](https://etherscan.io/address/0x28ed4e3751e12dc10aae6c4e40be1a3dad989483)**
 
 Contract-crowdsale for Deneum project. It receives ethers and sends back corresponding amount of DNM tokens. 
 Token price depends on the current phase (see the schedule).
